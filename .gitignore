@@ -1,0 +1,21 @@
+﻿# Python
+__pycache__/
+*.py[cod]
+*.class
+
+# Environments
+.env
+.env.*
+.venv/
+venv/
+
+# Output / generated artifacts
+output/
+projects/*/production/tasks/
+
+# OS / editor junk
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

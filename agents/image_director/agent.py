@@ -1,0 +1,193 @@
+"""Deterministic local Image Director agent."""
+
+from __future__ import annotations
+
+import json
+import logging
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
+
+from core.models.production import ProductionTask
+from core.pipeline.agents import AgentExecutionContext, AgentResult
+
+
+@dataclass(frozen=True)
+class ImagePlan:
+    """Planned image artifact for one scene."""
+
+    scene_id: str
+    scene_title: str
+    source_prompt: str
+    negative_prompt: str
+    planned_output_file: str
+    plan_path: Path
+
+
+class ImageDirectorAgent:
+    """Creates deterministic image planning artifacts without generating images."""
+
+    agent_id = "image_director"
+    version = "image_director_v1"
+
+    def __init__(self, logger: logging.Logger | None = None) -> None:
+        self.logger = logger or logging.getLogger(__name__)
+
+    def execute(self, task: ProductionTask, context: AgentExecutionContext) -> AgentResult:
+        """Create image plan JSON files from `scene_prompts.json`."""
+
+        source_path = context.output_directory / "scene_prompts.json"
+        images_directory = context.output_directory / "images"
+
+        if not source_path.is_file():
+            message = f"scene_prompts.json is missing: {source_path}"
+            self.logger.error(message)
+            return AgentResult(
+                success=False,
+                status="missing_input",
+                message=message,
+                metadata={"missing_file": source_path.as_posix()},
+            )
+
+        prompt_package = self._load_json(source_path)
+        image_plans = self._build_image_plans(prompt_package, images_directory)
+        images_directory.mkdir(parents=True, exist_ok=True)
+
+        for plan in image_plans:
+            self._save_json(plan.plan_path, self._image_plan_payload(plan, prompt_package))
+
+        manifest_path = images_directory / "image_manifest.json"
+        manifest = self._manifest_payload(task, prompt_package, source_path, image_plans)
+        self._save_json(manifest_path, manifest)
+
+        self.logger.info("Image Director created image manifest: %s", manifest_path)
+        return AgentResult(
+            success=True,
+            status="image_plans_created",
+            message="Image Director created deterministic image planning artifacts.",
+            output_path=manifest_path,
+            metadata={
+                "source_scene_prompts": source_path.as_posix(),
+                "image_manifest": manifest_path.as_posix(),
+                "scene_count": len(image_plans),
+                "image_status": "planned_not_generated",
+            },
+        )
+
+    @staticmethod
+    def _load_json(path: Path) -> dict[str, Any]:
+        with path.open("r", encoding="utf-8") as file:
+            return json.load(file)
+
+    def _build_image_plans(
+        self,
+        prompt_package: dict[str, Any],
+        images_directory: Path,
+    ) -> list[ImagePlan]:
+        prompts = prompt_package.get("prompts") or prompt_package.get("scenes") or []
+        plans: list[ImagePlan] = []
+
+        for index, scene_prompt in enumerate(prompts, start=1):
+            scene_id = str(scene_prompt.get("scene_id") or f"scene_{index:03d}")
+            scene_title = str(scene_prompt.get("scene_title") or f"Scene {index}")
+            planned_output_file = str(
+                scene_prompt.get("output_targets", {}).get("image") or f"images/{scene_id}.png"
+            )
+            plans.append(
+                ImagePlan(
+                    scene_id=scene_id,
+                    scene_title=scene_title,
+                    source_prompt=str(scene_prompt.get("image_prompt") or ""),
+                    negative_prompt=str(scene_prompt.get("negative_prompt") or ""),
+                    planned_output_file=planned_output_file,
+                    plan_path=images_directory / f"{scene_id}.json",
+                )
+            )
+        return plans
+
+    def _image_plan_payload(self, plan: ImagePlan, prompt_package: dict[str, Any]) -> dict[str, Any]:
+        scene_prompt = self._find_scene_prompt(prompt_package, plan.scene_id)
+        return {
+            "scene_id": plan.scene_id,
+            "scene_title": plan.scene_title,
+            "source_prompt": plan.source_prompt,
+            "negative_prompt": plan.negative_prompt,
+            "planned_output_file": plan.planned_output_file,
+            "image_status": "planned_not_generated",
+            "image_style": prompt_package.get("global_style")
+            or prompt_package.get("prompt_style_version")
+            or "semi-realistic anime style, cinematic composition, high quality lighting",
+            "continuity_notes": {
+                "visual": scene_prompt.get("visual_continuity_notes", []),
+                "character": scene_prompt.get("character_continuity_notes", []),
+            },
+            "generation_notes": [
+                "No image was generated by this deterministic Image Director.",
+                "This file is a future image generation plan.",
+                "Do not treat planned_output_file as an existing asset.",
+            ],
+            "metadata": {
+                "source_scene_id": plan.scene_id,
+                "source_prompt_style_version": prompt_package.get("prompt_style_version"),
+                "aspect_ratio": scene_prompt.get("aspect_ratio", "9:16"),
+                "mood": scene_prompt.get("mood"),
+            },
+        }
+
+    def _manifest_payload(
+        self,
+        task: ProductionTask,
+        prompt_package: dict[str, Any],
+        source_path: Path,
+        image_plans: list[ImagePlan],
+    ) -> dict[str, Any]:
+        return {
+            "project": prompt_package.get("project") or task.project,
+            "episode": prompt_package.get("episode") or task.episode,
+            "task_id": task.task_id,
+            "image_director_version": self.version,
+            "source_scene_prompts": source_path.as_posix(),
+            "total_scenes": len(image_plans),
+            "image_status": "planned_not_generated",
+            "scenes": [
+                {
+                    "scene_id": plan.scene_id,
+                    "scene_title": plan.scene_title,
+                    "plan_file": plan.plan_path.relative_to(source_path.parent).as_posix(),
+                    "planned_output_file": plan.planned_output_file,
+                    "image_status": "planned_not_generated",
+                }
+                for plan in image_plans
+            ],
+            "validation_notes": [
+                "Image Director produced JSON planning artifacts only.",
+                "No real images were generated.",
+                "No placeholder PNG files were created.",
+                "Each scene prompt has a corresponding image plan JSON file.",
+            ],
+            "metadata": {
+                "prompt_style_version": prompt_package.get("prompt_style_version"),
+                "source_scene_count": len(prompt_package.get("prompts") or prompt_package.get("scenes") or []),
+            },
+        }
+
+    @staticmethod
+    def _find_scene_prompt(prompt_package: dict[str, Any], scene_id: str) -> dict[str, Any]:
+        prompts = prompt_package.get("prompts") or prompt_package.get("scenes") or []
+        for scene_prompt in prompts:
+            if str(scene_prompt.get("scene_id")) == scene_id:
+                return scene_prompt
+        return {}
+
+    @staticmethod
+    def _save_json(path: Path, data: dict[str, Any]) -> None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("w", encoding="utf-8") as file:
+            json.dump(data, file, ensure_ascii=False, indent=2)
+            file.write("\n")
+
+
+def create_agent() -> ImageDirectorAgent:
+    """Factory used by FileSystemAgentRegistry."""
+
+    return ImageDirectorAgent()
