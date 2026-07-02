@@ -51,8 +51,10 @@ def main() -> None:
         assert "prompt_engineer" not in production_task["pending_stages"]
         assert "voice_director" in production_task["completed_stages"]
         assert "video_editor" in production_task["completed_stages"]
-        assert production_task["current_stage"] == "analytics"
-        assert production_task["status"] == "Waiting for Analytics implementation."
+        assert "analytics" in production_task["completed_stages"]
+        assert "publisher" in production_task["completed_stages"]
+        assert production_task["current_stage"] == "completed"
+        assert production_task["status"] == "completed"
         assert "prompt_engineer" in production_task["metadata"]["stage_results"]
         assert scene_prompts["schema_version"] == "1.0"
         assert scene_prompts["project"] == "ImmortalAcademy"

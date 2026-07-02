@@ -39,7 +39,13 @@ v
 video/video_manifest.json
 |
 v
-Waiting for Analytics implementation
+episode_report.json
+|
+v
+final/metadata.json
+|
+v
+Deterministic local pipeline completed
 ```
 
 ---
@@ -53,6 +59,8 @@ Waiting for Analytics implementation
 - [x] Image Director
 - [x] Voice Director
 - [x] Video Editor
+- [x] Analytics
+- [x] Publisher
 
 ---
 
@@ -63,8 +71,8 @@ Codex must work on only the first unchecked task in this list.
 - [x] Implement minimal deterministic Image Director
 - [x] Implement minimal deterministic Voice Director
 - [x] Implement minimal deterministic Video Editor
-- [ ] Implement minimal deterministic Analytics
-- [ ] Implement minimal deterministic Publisher
+- [x] Implement minimal deterministic Analytics
+- [x] Implement minimal deterministic Publisher
 - [ ] Add JSON Schema validation layer
 - [ ] Resume pipeline from existing production_task.json
 - [ ] Improve character/world memory usage

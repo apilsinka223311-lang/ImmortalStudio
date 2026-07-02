@@ -1,4 +1,4 @@
-"""Smoke check for the deterministic Image Director pipeline transition."""
+"""Smoke check for the deterministic Analytics pipeline transition."""
 
 from __future__ import annotations
 
@@ -17,63 +17,66 @@ from core import ProductionRequest, create_default_director  # noqa: E402
 
 
 def main() -> None:
-    """Run the pipeline through Image Director and clean generated artifacts."""
+    """Run the pipeline through Analytics and clean generated artifacts."""
 
     director = create_default_director(ROOT)
     task = director.start_production(
         ProductionRequest(
             project="ImmortalAcademy",
-            episode="episode_image_smoke",
+            episode="episode_analytics_smoke",
             idea="A new disciple awakens an ancient sword.",
             language="English",
             platform="YouTube Shorts",
-            episode_goal="Verify the Image Director planning transition.",
+            episode_goal="Verify the Analytics reporting transition.",
             duration_seconds=60,
         )
     )
 
     try:
         task_path = task.output_directory / "production_task.json"
+        report_path = task.output_directory / "episode_report.json"
         prompts_path = task.output_directory / "scene_prompts.json"
-        images_dir = task.output_directory / "images"
-        manifest_path = images_dir / "image_manifest.json"
+        image_manifest_path = task.output_directory / "images" / "image_manifest.json"
+        voice_manifest_path = task.output_directory / "voice" / "voice_manifest.json"
+        video_manifest_path = task.output_directory / "video" / "video_manifest.json"
 
         assert task_path.is_file(), f"Missing production task: {task_path}"
+        assert report_path.is_file(), f"Missing episode report: {report_path}"
         assert prompts_path.is_file(), f"Missing scene prompts: {prompts_path}"
-        assert images_dir.is_dir(), f"Missing images directory: {images_dir}"
-        assert manifest_path.is_file(), f"Missing image manifest: {manifest_path}"
-        assert not list(images_dir.glob("*.png")), "Image Director must not create fake PNG files."
+        assert image_manifest_path.is_file(), f"Missing image manifest: {image_manifest_path}"
+        assert voice_manifest_path.is_file(), f"Missing voice manifest: {voice_manifest_path}"
+        assert video_manifest_path.is_file(), f"Missing video manifest: {video_manifest_path}"
 
         production_task = json.loads(task_path.read_text(encoding="utf-8"))
         scene_prompts = json.loads(prompts_path.read_text(encoding="utf-8"))
-        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        report = json.loads(report_path.read_text(encoding="utf-8"))
 
         assert "story_architect" in production_task["completed_stages"]
         assert "script_writer" in production_task["completed_stages"]
         assert "prompt_engineer" in production_task["completed_stages"]
         assert "image_director" in production_task["completed_stages"]
-        assert "image_director" not in production_task["pending_stages"]
         assert "voice_director" in production_task["completed_stages"]
         assert "video_editor" in production_task["completed_stages"]
         assert "analytics" in production_task["completed_stages"]
+        assert "analytics" not in production_task["pending_stages"]
         assert "publisher" in production_task["completed_stages"]
         assert production_task["current_stage"] == "completed"
         assert production_task["status"] == "completed"
-        assert "image_director" in production_task["metadata"]["stage_results"]
+        assert "analytics" in production_task["metadata"]["stage_results"]
 
         scene_count = len(scene_prompts["prompts"])
-        assert manifest["image_status"] == "planned_not_generated"
-        assert manifest["total_scenes"] == scene_count
-        assert manifest["source_scene_prompts"].endswith("scene_prompts.json")
+        assert report["schema_version"] == "1.0"
+        assert report["analytics_version"] == "analytics_v1"
+        assert report["generation_summary"]["scene_count"] == scene_count
+        assert report["generation_summary"]["real_images_generated"] == 0
+        assert report["generation_summary"]["real_audio_files_generated"] == 0
+        assert report["generation_summary"]["real_video_files_rendered"] == 0
+        assert report["artifact_status"]["analytics"] == "report_created"
+        assert report["validation_summary"]["scene_counts_match"] is True
+        assert report["validation_summary"]["all_assets_are_planned_only"] is True
+        assert report["cost_summary"]["external_api_cost"] == 0
 
-        plan_files = sorted(images_dir.glob("scene_*.json"))
-        assert len(plan_files) == scene_count
-        for plan_file in plan_files:
-            plan = json.loads(plan_file.read_text(encoding="utf-8"))
-            assert plan["image_status"] == "planned_not_generated"
-            assert plan["planned_output_file"].endswith(".png")
-            assert plan["source_prompt"]
-            assert "metadata" in plan
+        assert not list(ROOT.rglob("__pycache__")), "__pycache__ directories must not remain."
     finally:
         logging.shutdown()
         _cleanup_task_directory(task.output_directory)
@@ -99,4 +102,4 @@ def _cleanup_task_directory(output_directory: Path) -> None:
 
 if __name__ == "__main__":
     main()
-    print("smoke_image_director_ok")
+    print("smoke_analytics_ok")

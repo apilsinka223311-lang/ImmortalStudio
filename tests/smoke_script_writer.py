@@ -50,8 +50,10 @@ def main() -> None:
         assert "script_writer" not in production_task["pending_stages"]
         assert "voice_director" in production_task["completed_stages"]
         assert "video_editor" in production_task["completed_stages"]
-        assert production_task["current_stage"] == "analytics"
-        assert production_task["status"] == "Waiting for Analytics implementation."
+        assert "analytics" in production_task["completed_stages"]
+        assert "publisher" in production_task["completed_stages"]
+        assert production_task["current_stage"] == "completed"
+        assert production_task["status"] == "completed"
         assert "script_writer" in production_task["metadata"]["stage_results"]
         assert episode_plan["schema_version"] == "1.0"
         assert "# " in episode_script

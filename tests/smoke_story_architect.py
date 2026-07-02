@@ -45,8 +45,10 @@ def main() -> None:
         assert "story_architect" not in production_task["pending_stages"]
         assert "voice_director" in production_task["completed_stages"]
         assert "video_editor" in production_task["completed_stages"]
-        assert production_task["current_stage"] == "analytics"
-        assert production_task["status"] == "Waiting for Analytics implementation."
+        assert "analytics" in production_task["completed_stages"]
+        assert "publisher" in production_task["completed_stages"]
+        assert production_task["current_stage"] == "completed"
+        assert production_task["status"] == "completed"
         assert episode_plan["schema_version"] == "1.0"
         assert episode_plan["episode_id"] == "episode_smoke"
         assert len(episode_plan["scenes"]) >= 1
