@@ -136,7 +136,11 @@ class PromptEngineerAgent:
         project_id = str(episode_plan.get("project_id") or task.metadata.get("project_id") or task.project)
         episode_id = str(episode_plan.get("episode_id") or task.episode)
         global_style = self._global_style(episode_plan)
-        prompts = [self._build_scene_prompt(scene, global_style) for scene in scenes]
+        memory_references = self._memory_references(episode_plan, context)
+        prompts = [
+            self._build_scene_prompt(scene, global_style, memory_references)
+            for scene in scenes
+        ]
 
         return {
             "schema_version": "1.0",
@@ -153,6 +157,7 @@ class PromptEngineerAgent:
             "source_episode_plan": plan_path.as_posix(),
             "source_episode_script": script_path.as_posix(),
             "global_style": global_style,
+            "memory_references": memory_references,
             "prompts": prompts,
             "scenes": prompts,
             "validation_notes": [
@@ -164,10 +169,21 @@ class PromptEngineerAgent:
             "metadata": {
                 "script_character_count": len(episode_script),
                 "memory_summary": context.metadata.get("memory_summary", {}),
+                "memory_context": context.metadata.get("memory_context", {}),
                 "scene_count": len(prompts),
             },
             "validation_status": "draft",
         }
+
+    @staticmethod
+    def _memory_references(
+        episode_plan: dict[str, Any],
+        context: AgentExecutionContext,
+    ) -> dict[str, Any]:
+        plan_references = episode_plan.get("memory_references")
+        if isinstance(plan_references, dict):
+            return plan_references
+        return context.metadata.get("memory_context", {})
 
     @staticmethod
     def _global_style(episode_plan: dict[str, Any]) -> str:
@@ -177,13 +193,21 @@ class PromptEngineerAgent:
             f"high quality lighting, readable action, tone: {tone}"
         )
 
-    def _build_scene_prompt(self, scene: PromptScene, global_style: str) -> dict[str, Any]:
+    def _build_scene_prompt(
+        self,
+        scene: PromptScene,
+        global_style: str,
+        memory_references: dict[str, Any],
+    ) -> dict[str, Any]:
         characters = ", ".join(scene.characters)
+        world_notes = self._reference_notes(memory_references.get("world", []))
+        character_notes = self._reference_notes(memory_references.get("characters", []))
+        memory_prompt = self._memory_prompt(world_notes, character_notes)
         image_prompt = (
             f"{global_style}. Scene purpose: {scene.purpose}. Location: {scene.location}. "
             f"Characters: {characters}. Emotion: {scene.emotion}. Visual focus: {scene.visual_focus}. "
             f"Description: {scene.description}. Use cinematic composition, consistent character design, "
-            "semi-realistic anime style, high quality lighting."
+            f"semi-realistic anime style, high quality lighting.{memory_prompt}"
         )
 
         return {
@@ -217,10 +241,12 @@ class PromptEngineerAgent:
                 "Maintain semi-realistic anime style.",
                 "Keep lighting and camera language consistent across scenes.",
                 "Avoid redesigning recurring visual elements.",
+                *world_notes,
             ],
             "character_continuity_notes": [
                 f"Keep character identities consistent for: {characters}.",
                 "Do not change faces, silhouettes, clothing identity, or voice assumptions without approval.",
+                *character_notes,
             ],
             "character_references": [
                 {
@@ -245,6 +271,27 @@ class PromptEngineerAgent:
             "aspect_ratio": "9:16",
             "mood": scene.emotion,
         }
+
+    @staticmethod
+    def _reference_notes(entries: Any) -> list[str]:
+        if not isinstance(entries, list):
+            return []
+        notes: list[str] = []
+        for entry in entries:
+            if not isinstance(entry, dict):
+                continue
+            path = entry.get("path")
+            excerpt = entry.get("excerpt")
+            if path and excerpt:
+                notes.append(f"Memory reference from {path}: {excerpt}")
+        return notes
+
+    @staticmethod
+    def _memory_prompt(world_notes: list[str], character_notes: list[str]) -> str:
+        notes = world_notes[:1] + character_notes[:1]
+        if not notes:
+            return ""
+        return " Memory context: " + " ".join(notes)
 
     @staticmethod
     def _save_json(path: Path, data: dict[str, Any]) -> None:

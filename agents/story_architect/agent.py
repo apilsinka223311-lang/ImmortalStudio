@@ -109,6 +109,7 @@ class StoryArchitectAgent:
             },
             "emotional_curve": ["curiosity", "tension", "wonder", "anticipation"],
             "scenes": scenes,
+            "memory_references": self._build_memory_references(context),
             "continuity_notes": self._build_continuity_notes(task, context),
             "required_assets": self._build_required_assets(scenes),
             "validation_notes": [
@@ -221,9 +222,28 @@ class StoryArchitectAgent:
         ]
         memory_summary = context.metadata.get("memory_summary", {})
         notes.append(f"Loaded memory summary: {memory_summary}.")
+        memory_context = context.metadata.get("memory_context", {})
+        for section_name in ("world", "characters"):
+            for entry in memory_context.get(section_name, []):
+                notes.append(
+                    f"Use {section_name} memory from {entry.get('path')}: {entry.get('excerpt')}"
+                )
+        if not memory_context.get("world") and not memory_context.get("characters"):
+            notes.append("No non-empty world or character memory excerpts were available.")
         if task.metadata.get("world"):
             notes.append(f"Requested world context: {task.metadata['world']}.")
         return notes
+
+    @staticmethod
+    def _build_memory_references(context: AgentExecutionContext) -> dict[str, Any]:
+        memory_context = context.metadata.get("memory_context", {})
+        return {
+            "summary": memory_context.get("summary", context.metadata.get("memory_summary", {})),
+            "world": memory_context.get("world", []),
+            "characters": memory_context.get("characters", []),
+            "prompts": memory_context.get("prompts", []),
+            "style_guide": memory_context.get("style_guide", ""),
+        }
 
     @staticmethod
     def _build_required_assets(scenes: list[dict[str, Any]]) -> list[dict[str, str]]:

@@ -151,6 +151,7 @@ class StudioDirector:
             metadata={
                 "project": project_config.project_id,
                 "memory_summary": memory.summary(),
+                "memory_context": memory.context(),
             },
         )
         return self.pipeline_manager.execute_current_stage(task, context)
@@ -254,6 +255,7 @@ class StudioDirector:
                 "project_path": project_config.project_path.as_posix(),
                 "project_documents": sorted(project_config.project_documents.keys()),
                 "loaded_memory": memory.summary(),
+                "memory_context": memory.context(),
                 "global_config_keys": sorted(project_config.global_config.keys()),
                 "notes": [
                     "FIRST_PIPELINE.md is treated as documentation, not runtime configuration."

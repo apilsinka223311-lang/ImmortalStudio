@@ -51,6 +51,9 @@ v
 Resume from existing production_task.json supported
 |
 v
+World and character memory excerpts passed into planning/prompts
+|
+v
 Deterministic local pipeline completed
 ```
 
@@ -82,7 +85,7 @@ Codex must work on only the first unchecked task in this list.
 - [x] Implement minimal deterministic Publisher
 - [x] Add JSON Schema validation layer
 - [x] Resume pipeline from existing production_task.json
-- [ ] Improve character/world memory usage
+- [x] Improve character/world memory usage
 
 ---
 
