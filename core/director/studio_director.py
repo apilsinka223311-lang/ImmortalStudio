@@ -14,6 +14,7 @@ from core.services.memory_loader import MemoryLoader, ProjectMemory
 from core.services.project_loader import ProjectConfig, ProjectLoader
 from core.storage.json_storage import JsonStorage
 from core.utils.logging import add_file_handler, get_logger, setup_logging
+from core.validation import DefaultArtifactValidator
 
 
 class StudioDirector:
@@ -26,6 +27,7 @@ class StudioDirector:
         memory_loader: MemoryLoader,
         pipeline_manager: PipelineManager,
         storage: JsonStorage,
+        artifact_validator: DefaultArtifactValidator | None = None,
         logger: logging.Logger | None = None,
     ) -> None:
         self.root_path = root_path
@@ -33,6 +35,7 @@ class StudioDirector:
         self.memory_loader = memory_loader
         self.pipeline_manager = pipeline_manager
         self.storage = storage
+        self.artifact_validator = artifact_validator or DefaultArtifactValidator()
         self.logger = logger or get_logger(__name__)
 
     def start_production(self, request: ProductionRequest) -> ProductionTask:
@@ -77,6 +80,8 @@ class StudioDirector:
         while task.current_stage != "completed":
             stage = self.pipeline_manager.get_stage(task.current_stage)
             result = self._execute_current_stage(task, project_config, memory)
+            if result.success:
+                result = self._validate_stage_output(task, stage.stage_id, result)
             self._record_stage_result(task, stage.stage_id, result)
 
             if not result.success:
@@ -114,6 +119,46 @@ class StudioDirector:
             },
         )
         return self.pipeline_manager.execute_current_stage(task, context)
+
+    def _validate_stage_output(
+        self,
+        task: ProductionTask,
+        stage_id: str,
+        result: AgentResult,
+    ) -> AgentResult:
+        validation_result = self.artifact_validator.validate_stage(stage_id, task.output_directory)
+        metadata = dict(result.metadata)
+        metadata["validation"] = validation_result.to_dict()
+
+        if validation_result.skipped:
+            self.logger.info("No JSON Schema validation contract configured for stage '%s'.", stage_id)
+            return AgentResult(
+                success=result.success,
+                status=result.status,
+                message=result.message,
+                output_path=result.output_path,
+                metadata=metadata,
+            )
+
+        if validation_result.success:
+            self.logger.info("Stage '%s' output validation passed: %s", stage_id, validation_result.schema_name)
+            return AgentResult(
+                success=result.success,
+                status=result.status,
+                message=result.message,
+                output_path=result.output_path,
+                metadata=metadata,
+            )
+
+        message = f"Stage '{stage_id}' output failed JSON Schema validation: {validation_result.summary()}"
+        self.logger.error(message)
+        return AgentResult(
+            success=False,
+            status="validation_failed",
+            message=message,
+            output_path=result.output_path,
+            metadata=metadata,
+        )
 
     def _record_stage_result(self, task: ProductionTask, stage_id: str, result: AgentResult) -> None:
         task.metadata.setdefault("stage_results", {})
@@ -215,5 +260,6 @@ def create_default_director(root_path: Path | None = None) -> StudioDirector:
         memory_loader=MemoryLoader(resolved_root),
         pipeline_manager=pipeline_manager,
         storage=JsonStorage(),
+        artifact_validator=DefaultArtifactValidator(),
         logger=logger,
     )

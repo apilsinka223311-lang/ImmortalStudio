@@ -45,6 +45,9 @@ v
 final/metadata.json
 |
 v
+JSON Schema validation gates passed
+|
+v
 Deterministic local pipeline completed
 ```
 
@@ -61,6 +64,7 @@ Deterministic local pipeline completed
 - [x] Video Editor
 - [x] Analytics
 - [x] Publisher
+- [x] JSON Schema validation layer
 
 ---
 
@@ -73,7 +77,7 @@ Codex must work on only the first unchecked task in this list.
 - [x] Implement minimal deterministic Video Editor
 - [x] Implement minimal deterministic Analytics
 - [x] Implement minimal deterministic Publisher
-- [ ] Add JSON Schema validation layer
+- [x] Add JSON Schema validation layer
 - [ ] Resume pipeline from existing production_task.json
 - [ ] Improve character/world memory usage
 

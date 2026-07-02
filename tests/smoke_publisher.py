@@ -60,6 +60,18 @@ def main() -> None:
         assert production_task["current_stage"] == "completed"
         assert production_task["status"] == "completed"
         assert "publisher" in production_task["metadata"]["stage_results"]
+        stage_results = production_task["metadata"]["stage_results"]
+        for stage_id in (
+            "story_architect",
+            "prompt_engineer",
+            "image_director",
+            "voice_director",
+            "video_editor",
+            "analytics",
+            "publisher",
+        ):
+            assert stage_results[stage_id]["metadata"]["validation"]["success"] is True
+        assert stage_results["script_writer"]["metadata"]["validation"]["skipped"] is True
 
         assert metadata["schema_version"] == "1.0"
         assert metadata["publisher_version"] == "publisher_v1"
