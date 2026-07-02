@@ -99,6 +99,26 @@ class ProductionTask:
         data["output_directory"] = self.output_directory.as_posix()
         return data
 
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "ProductionTask":
+        """Restore a production task from `production_task.json` data."""
+
+        return cls(
+            task_id=str(data["task_id"]),
+            timestamp=str(data["timestamp"]),
+            project=str(data["project"]),
+            episode=str(data["episode"]),
+            idea=str(data["idea"]),
+            language=str(data["language"]),
+            platform=str(data["platform"]),
+            status=str(data["status"]),
+            current_stage=str(data["current_stage"]),
+            completed_stages=[str(stage_id) for stage_id in data.get("completed_stages", [])],
+            pending_stages=[str(stage_id) for stage_id in data.get("pending_stages", [])],
+            output_directory=Path(str(data["output_directory"])),
+            metadata=dict(data.get("metadata", {})),
+        )
+
     def mark_stage_completed(self, stage_id: str) -> None:
         """Mark a stage as completed and remove it from pending work."""
 

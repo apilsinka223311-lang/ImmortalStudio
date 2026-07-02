@@ -69,6 +69,41 @@ class StudioDirector:
         self._save_task(task)
         return task
 
+    def resume_production(self, task_path: Path) -> ProductionTask:
+        """Resume an existing production task from its saved current stage."""
+
+        resolved_task_path = task_path.resolve()
+        self.logger.info("Studio Director received resume request for %s.", resolved_task_path)
+        task = ProductionTask.from_dict(self.storage.load(resolved_task_path))
+        if task.output_directory.resolve() != resolved_task_path.parent:
+            self.logger.warning(
+                "Production task output directory differs from task file parent: %s != %s",
+                task.output_directory,
+                resolved_task_path.parent,
+            )
+
+        add_file_handler(self.logger, task.output_directory / "studio_director.log")
+        project_config = self.project_loader.load(task.project)
+        memory = self.memory_loader.load(project_config)
+
+        if task.current_stage == "completed":
+            self.logger.info("Production task '%s' is already completed.", task.task_id)
+            self._save_task(task)
+            return task
+
+        self.pipeline_manager.get_stage(task.current_stage)
+        task.status = "in_progress"
+        self._save_task(task)
+        self.logger.info(
+            "Resuming production task '%s' from stage '%s'.",
+            task.task_id,
+            task.current_stage,
+        )
+
+        self._run_pipeline_until_blocked(task, project_config, memory)
+        self._save_task(task)
+        return task
+
     def _run_pipeline_until_blocked(
         self,
         task: ProductionTask,
