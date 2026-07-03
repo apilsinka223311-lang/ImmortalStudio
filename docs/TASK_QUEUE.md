@@ -82,6 +82,7 @@ Deterministic local pipeline completed
 - [x] Add approved creative memory canon for The Origin System
 - [x] Connect approved creative memory canon to runtime memory loading
 - [x] Document preferred project memory layout
+- [x] Document episode memory workflow
 
 ---
 
