@@ -35,7 +35,7 @@ class ProjectMemory:
             "has_non_empty_style_guide": bool(self.style_guide and self.style_guide.strip()),
         }
 
-    def context(self, max_files_per_section: int = 3, max_excerpt_chars: int = 320) -> dict[str, Any]:
+    def context(self, max_files_per_section: int = 3, max_excerpt_chars: int = 640) -> dict[str, Any]:
         """Return a small deterministic memory context for pipeline agents."""
 
         return {
@@ -63,7 +63,10 @@ class ProjectMemory:
         max_excerpt_chars: int,
     ) -> list[dict[str, str]]:
         entries: list[dict[str, str]] = []
-        for relative_path, content in sorted(files.items()):
+        for relative_path, content in sorted(
+            files.items(),
+            key=lambda item: (item[0].startswith("memory/"), item[0]),
+        ):
             excerpt = cls._excerpt_text(content, max_excerpt_chars)
             if excerpt:
                 entries.append({"path": relative_path, "excerpt": excerpt})
@@ -92,21 +95,40 @@ class MemoryLoader:
 
         directories = project_config.project_directories
         return ProjectMemory(
-            world=self._load_directory(directories["world"]),
-            characters=self._load_directory(directories["characters"]),
-            prompts=self._load_directory(directories["prompts"]),
+            world=self._load_memory_section(project_config, "world", directories["world"]),
+            characters=self._load_memory_section(project_config, "characters", directories["characters"]),
+            prompts=self._load_memory_section(project_config, "prompts", directories["prompts"]),
             previous_episodes=self._load_directory(directories["episodes"]),
             style_guide=self._load_optional_file(self.root_path / "docs" / "STYLE_GUIDE.md"),
         )
 
-    def _load_directory(self, directory: Path) -> dict[str, str]:
+    def _load_memory_section(
+        self,
+        project_config: ProjectConfig,
+        section_name: str,
+        legacy_directory: Path,
+    ) -> dict[str, str]:
+        """Load legacy memory plus approved canon from `memory/<section>`."""
+
+        memory = self._load_directory(legacy_directory)
+        approved_directory = project_config.project_path / "memory" / section_name
+        memory.update(
+            self._load_directory(
+                approved_directory,
+                relative_to=project_config.project_path,
+            )
+        )
+        return memory
+
+    def _load_directory(self, directory: Path, relative_to: Path | None = None) -> dict[str, str]:
         memory: dict[str, str] = {}
         if not directory.exists():
             return memory
 
+        base_path = relative_to or directory
         for path in sorted(directory.rglob("*")):
             if path.is_file() and path.suffix.lower() in self.MEMORY_EXTENSIONS:
-                memory[path.relative_to(directory).as_posix()] = self._read_text(path)
+                memory[path.relative_to(base_path).as_posix()] = self._read_text(path)
         return memory
 
     @staticmethod

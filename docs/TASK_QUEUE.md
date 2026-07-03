@@ -54,6 +54,9 @@ v
 World and character memory excerpts passed into planning/prompts
 |
 v
+Approved creative memory canon loaded at runtime
+|
+v
 Deterministic local pipeline completed
 ```
 
@@ -77,6 +80,7 @@ Deterministic local pipeline completed
 # Completed Manual Memory Tasks
 
 - [x] Add approved creative memory canon for The Origin System
+- [x] Connect approved creative memory canon to runtime memory loading
 
 ---
 
