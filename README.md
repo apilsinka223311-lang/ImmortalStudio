@@ -595,6 +595,10 @@ The studio remembers:
 
 Nothing important should ever be regenerated from scratch.
 
+Preferred project memory layout is documented in:
+
+- `docs/PROJECT_MEMORY_LAYOUT.md`
+
 
 
 \---
