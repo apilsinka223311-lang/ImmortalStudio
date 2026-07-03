@@ -84,6 +84,7 @@ Deterministic local pipeline completed
 - [x] Document preferred project memory layout
 - [x] Document episode memory workflow
 - [x] Add first canon-driven episode production sample
+- [x] Add first episode artifact contract
 
 ---
 
