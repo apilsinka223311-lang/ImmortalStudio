@@ -74,6 +74,12 @@ Deterministic local pipeline completed
 
 ---
 
+# Completed Manual Memory Tasks
+
+- [x] Add approved creative memory canon for The Origin System
+
+---
+
 # Active Task Queue
 
 Codex must work on only the first unchecked task in this list.
