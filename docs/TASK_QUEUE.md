@@ -83,6 +83,7 @@ Deterministic local pipeline completed
 - [x] Connect approved creative memory canon to runtime memory loading
 - [x] Document preferred project memory layout
 - [x] Document episode memory workflow
+- [x] Add first canon-driven episode production sample
 
 ---
 
