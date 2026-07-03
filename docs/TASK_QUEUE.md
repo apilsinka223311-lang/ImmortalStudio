@@ -85,6 +85,7 @@ Deterministic local pipeline completed
 - [x] Document episode memory workflow
 - [x] Add first canon-driven episode production sample
 - [x] Add first episode artifact contract
+- [x] Document Lore Keeper design
 
 ---
 
